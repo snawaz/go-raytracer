@@ -5,6 +5,7 @@ import (
     "fmt"
     "math"
     "os"
+    "sync"
 )
 
 type Color struct {
@@ -51,7 +52,9 @@ func rayColor(ray Ray, world Hittable, raysPerSample int) *Vec {
 func createImage(width, height, samplesPerPixel, raysPerSample int, world Hittable) Image {
     colors := make([]Color, width * height)
     camera := NewCamera(NewVec(13, 2, 3), Zeroes(), NewVec(0, 1, 0), 20.0, float64(width)/float64(height), 0.1, 10.0)
-    ProcessRow := func(j int) {
+    var waitGroup sync.WaitGroup
+    waitGroup.Add(height)
+    processRows := func(j int) {
         for i := 0; i < width; i++ {
             k := j * width + i
             sampled := Zeroes()
@@ -62,10 +65,12 @@ func createImage(width, height, samplesPerPixel, raysPerSample int, world Hittab
             }
             colors[k] = sampled.toColor(samplesPerPixel)
         }
+        waitGroup.Done()
     }
     for j := 0; j < height; j++ {
-        ProcessRow(j)
+        go processRows(j)
     }
+    waitGroup.Wait()
     return Image { width, height, colors }
 }
 
